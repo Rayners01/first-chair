@@ -182,6 +182,13 @@ input[type=range]::-moz-range-thumb {
 #legs li.on { background: var(--blue-mist); }
 #legs li.on .t, #legs li.on .v { color: var(--blue-ink); }
 
+/* footer */
+
+footer { padding: 18px 26px 26px; font-size: 11.5px; line-height: 1.6;
+         color: var(--ink-45); }
+footer a { color: var(--ink-45); }
+footer a:hover { color: var(--blue); }
+
 /* ---------- map furniture ---------- */
 .floating { position: absolute; z-index: 3; background: rgba(255,255,255,.93);
             backdrop-filter: blur(10px); border: 1px solid var(--line);
@@ -296,6 +303,12 @@ input[type=range]::-moz-range-thumb {
     <div id="ticketHead"><b id="ticketTitle"></b><span id="ticketMeta"></span></div>
     <ul id="legs"></ul>
   </div>
+
+  <footer>
+    © Alfie Rayner, 2026 · Map data ©
+    <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>
+    contributors via <a href="https://openskimap.org">OpenSkiMap</a>
+  </footer>
 </div>
 
 <div id="map">
@@ -418,7 +431,7 @@ async function loadResorts(select) {
     }).join("") + `</optgroup>`;
   }
   $("resort").innerHTML = html ||
-    `<option value="">No resorts found - add a graph to graphs/</option>`;
+    `<option value="">No resorts found.</option>`;
 
   if (select) $("resort").value = select;
   onResortChange();
