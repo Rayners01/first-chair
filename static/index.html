@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>First Chair - the optimal ski day</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+<link rel="manifest" href="/static/site.webmanifest">
+<style>
+:root {
+  --ink:      #0a0e14;
+  --ink-70:   #3d4654;
+  --ink-45:   #767f8d;
+  --line:     #e4e8ee;
+  --line-2:   #eef1f5;
+  --paper:    #ffffff;
+  --wash:     #f6f8fb;
+  --blue:     #1257e0;
+  --blue-ink: #0a2a6b;
+  --blue-mist:#e8effc;
+  --sidebar:  400px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  font-family: "Inter Tight", system-ui, sans-serif;
+  color: var(--ink); background: var(--paper);
+  display: grid; grid-template-columns: var(--sidebar) 1fr; height: 100%;
+  -webkit-font-smoothing: antialiased;
+}
+h1, p, ul { margin: 0; }
+:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px;
+                 border-radius: 4px; }
+
+/* ---------- sidebar: the ONLY scroll container ---------- */
+#side { overflow-y: auto; overscroll-behavior: contain;
+        border-right: 1px solid var(--line); background: var(--paper); }
+#map { position: relative; background: var(--wash); }
+#mapgl { position: absolute; inset: 0; }
+
+header { padding: 20px 20px 20px; border-bottom: 1px solid var(--line); }
+header img { width: 70%; height: auto; display: block; }
+header .fallback { font-weight: 700; font-size: 25px; letter-spacing: -.035em; }
+header p { margin-top: 10px; font-size: 13px; color: var(--ink-45); }
+
+section { padding: 22px 26px; border-bottom: 1px solid var(--line); }
+.eyebrow { font-size: 10.5px; font-weight: 600; letter-spacing: .14em;
+           text-transform: uppercase; color: var(--ink-45); }
+
+/* ---------- form controls ---------- */
+.field { margin-top: 20px; }
+.field > label { display: block; font-size: 13px; font-weight: 500;
+                 color: var(--ink-70); margin-bottom: 7px; }
+.selwrap { position: relative; }
+.selwrap::after {
+  content: ""; position: absolute; right: 14px; top: 50%; width: 7px; height: 7px;
+  border-right: 1.6px solid var(--ink-45); border-bottom: 1.6px solid var(--ink-45);
+  transform: translateY(-70%) rotate(45deg); pointer-events: none;
+}
+select {
+  width: 100%; appearance: none; -webkit-appearance: none;
+  padding: 11px 34px 11px 13px; border: 1px solid var(--line);
+  border-radius: 8px; background: var(--paper);
+  font: 500 14px "Inter Tight", sans-serif; color: var(--ink); cursor: pointer;
+  transition: border-color .15s, box-shadow .15s;
+}
+select:hover { border-color: #cfd6e0; }
+optgroup { font: 600 11px "Inter Tight", sans-serif; letter-spacing: .1em;
+           text-transform: uppercase; color: var(--ink-45); }
+optgroup option { font: 500 14px "Inter Tight", sans-serif;
+                  text-transform: none; letter-spacing: 0; color: var(--ink); }
+.hint { margin-top: 7px; font-size: 12px; color: var(--ink-45); line-height: 1.4; }
+.hint.warn { color: var(--blue-ink); }
+select:focus { border-color: var(--blue); outline: none;
+               box-shadow: 0 0 0 3px var(--blue-mist); }
+
+.readout { float: right; font: 500 13px "JetBrains Mono", monospace;
+           color: var(--ink); }
+
+input[type=range] {
+  -webkit-appearance: none; appearance: none; width: 100%;
+  background: transparent; margin: 6px 0 0; cursor: pointer;
+}
+input[type=range]::-webkit-slider-runnable-track {
+  height: 3px; border-radius: 2px; background: var(--line);
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 17px; height: 17px; margin-top: -7px;
+  border-radius: 50%; background: var(--ink); border: 3px solid var(--paper);
+  box-shadow: 0 1px 4px rgba(10,14,20,.28); transition: transform .12s;
+}
+input[type=range]:hover::-webkit-slider-thumb { transform: scale(1.12); }
+input[type=range]:active::-webkit-slider-thumb { background: var(--blue); }
+input[type=range]::-moz-range-track { height: 3px; border-radius: 2px;
+                                      background: var(--line); }
+input[type=range]::-moz-range-thumb {
+  width: 13px; height: 13px; border: 3px solid var(--paper); border-radius: 50%;
+  background: var(--ink); box-shadow: 0 1px 4px rgba(10,14,20,.28);
+}
+.scale { display: flex; justify-content: space-between; margin-top: 8px;
+         font-size: 11.5px; color: var(--ink-45); }
+
+.switchrow { display: flex; align-items: center; justify-content: space-between;
+             margin-top: 22px; }
+.switchrow span { font-size: 13.5px; font-weight: 500; color: var(--ink-70); }
+.switch { position: relative; width: 40px; height: 23px; flex: none; }
+.switch input { position: absolute; inset: 0; opacity: 0; margin: 0;
+                width: 100%; height: 100%; cursor: pointer; }
+.switch i { position: absolute; inset: 0; background: #cfd6e0;
+            border-radius: 99px; transition: background .18s;
+            pointer-events: none; }
+.switch i::after { content: ""; position: absolute; top: 3px; left: 3px;
+                   width: 17px; height: 17px; border-radius: 50%;
+                   background: #fff; transition: transform .18s;
+                   box-shadow: 0 1px 3px rgba(10,14,20,.3); }
+.switch input:checked + i { background: var(--blue); }
+.switch input:checked + i::after { transform: translateX(17px); }
+.switch input:focus-visible + i { box-shadow: 0 0 0 3px var(--blue-mist); }
+
+#go {
+  width: 100%; margin-top: 24px; padding: 14px; border: 0; border-radius: 9px;
+  background: var(--ink); color: #fff; cursor: pointer;
+  font: 600 14.5px "Inter Tight", sans-serif;
+  transition: background .15s, transform .08s;
+}
+#go:hover { background: var(--blue-ink); }
+#go:active { transform: scale(.99); }
+#go:disabled { background: var(--ink-45); cursor: wait; }
+
+/* ---------- results ---------- */
+#results { display: none; }
+#stats { display: grid; grid-template-columns: 1fr 1fr; }
+.stat { padding: 16px 26px; border-bottom: 1px solid var(--line-2); }
+.stat:nth-child(odd) { border-right: 1px solid var(--line-2); }
+.stat b { display: block; font: 500 22px "JetBrains Mono", monospace;
+          letter-spacing: -.03em; }
+.stat b em { font-style: normal; font-size: 13px; color: var(--ink-45);
+             margin-left: 2px; }
+.stat span { display: block; margin-top: 3px; font-size: 10.5px;
+             font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+             color: var(--ink-45); }
+
+#ticketHead { display: flex; justify-content: space-between; align-items: baseline;
+              padding: 20px 26px 12px; }
+#ticketHead b { font-size: 15px; font-weight: 600; letter-spacing: -.015em; }
+#ticketHead span { font: 400 12px "JetBrains Mono", monospace;
+                   color: var(--ink-45); }
+
+#legs { list-style: none; padding: 0 26px 48px; }
+#legs li {
+  position: relative; display: grid; grid-template-columns: 44px 1fr auto;
+  gap: 12px; align-items: baseline; padding: 7px 0 7px 20px;
+  font-size: 13.5px; cursor: pointer; border-radius: 6px;
+}
+#legs li::before {                       /* connecting rail */
+  content: ""; position: absolute; left: 5px; top: 0; bottom: 0;
+  width: 1px; background: var(--line);
+}
+#legs li:first-child::before { top: 50%; }
+#legs li:last-child::before  { bottom: 50%; }
+#legs li i {                             /* pip: circle run, square lift */
+  position: absolute; left: 0; top: 12px; width: 11px; height: 11px;
+  border-radius: 50%; background: var(--ink); border: 2px solid var(--paper);
+}
+#legs li[data-kind="lift"] i { border-radius: 2px; width: 9px; height: 9px;
+                               left: 1px; }
+#legs li[data-kind="walk"] i, #legs li[data-kind="skate"] i {
+  width: 7px; height: 7px; left: 2px; border-radius: 1px;
+  transform: rotate(45deg); }
+#legs .t { font: 400 12px "JetBrains Mono", monospace; color: var(--ink-45); }
+#legs .n { font-weight: 500; }
+#legs li[data-kind="walk"] .n, #legs li[data-kind="skate"] .n {
+  color: var(--ink-45); font-weight: 400; }
+#legs .v { font: 400 12px "JetBrains Mono", monospace; color: var(--ink-45); }
+#legs li:hover { background: var(--wash); }
+#legs li.on { background: var(--blue-mist); }
+#legs li.on .t, #legs li.on .v { color: var(--blue-ink); }
+
+/* ---------- map furniture ---------- */
+.floating { position: absolute; z-index: 3; background: rgba(255,255,255,.93);
+            backdrop-filter: blur(10px); border: 1px solid var(--line);
+            border-radius: 10px; box-shadow: 0 4px 20px rgba(10,14,20,.09); }
+#legend { top: 18px; right: 18px; padding: 12px 14px; font-size: 11.5px;
+          display: none; }
+#legend div { display: flex; align-items: center; gap: 9px; margin: 5px 0;
+              color: var(--ink-70); }
+#legend b { display: block; width: 16px; height: 3px; border-radius: 2px; }
+#legend b.dash { height: 0; border-top: 2px dashed var(--ink); }
+
+#playbar { left: 50%; bottom: 24px; translate: -50% 0; display: none;
+           align-items: center; gap: 12px; padding: 9px 12px 9px 14px;
+           width: min(700px, 92%); border-radius: 99px; }
+#playbar > button { flex: none; width: 34px; height: 34px; border: 0;
+                    border-radius: 50%; background: var(--ink); color: #fff;
+                    font-size: 12px; line-height: 1; cursor: pointer;
+                    transition: background .15s; }
+#playbar > button:hover { background: var(--blue); }
+#playbar input { flex: 1; margin: 0; min-width: 80px; }
+
+#readouts { display: flex; align-items: baseline; gap: 8px; flex: none;
+            font: 500 13px "JetBrains Mono", monospace; }
+#readouts em { font-style: normal; color: var(--line); }
+#clockchip { min-width: 44px; text-align: right; }
+#elechip  { min-width: 56px; text-align: right; color: var(--ink-70); }
+#speedchip{ min-width: 60px; text-align: right; color: var(--ink-70); }
+
+#speeds { display: flex; gap: 2px; flex: none; background: var(--wash);
+          border-radius: 99px; padding: 3px; }
+#speeds button { border: 0; height: 26px; padding: 0 9px; border-radius: 99px;
+                 background: transparent; color: var(--ink-45); cursor: pointer;
+                 font: 500 11.5px "JetBrains Mono", monospace;
+                 transition: background .15s, color .15s; }
+#speeds button:hover { color: var(--ink); }
+#speeds button.on { background: var(--paper); color: var(--ink);
+                    box-shadow: 0 1px 3px rgba(10,14,20,.16); }
+
+#loading { position: absolute; inset: 0; z-index: 5; display: none;
+           place-items: center; background: rgba(255,255,255,.72);
+           backdrop-filter: blur(4px); }
+#loading .box { width: 260px; text-align: center; }
+#bar { height: 2px; background: var(--line); border-radius: 2px;
+       overflow: hidden; }
+#bar i { display: block; height: 100%; width: 38%; background: var(--blue);
+         border-radius: 2px; animation: sweep 1.5s ease-in-out infinite; }
+@keyframes sweep { 0% { transform: translateX(-100%); }
+                   100% { transform: translateX(363%); } }
+#loadmsg { margin-top: 14px; font-size: 13px; color: var(--ink-70); }
+@media (prefers-reduced-motion: reduce) {
+  #bar i { animation: none; width: 100%; opacity: .4; }
+}
+@media (max-width: 760px) {
+  #elechip, #speedchip, #readouts em { display: none; }
+}
+@media (max-width: 900px) {
+  body { grid-template-columns: 1fr; grid-template-rows: 46vh 54vh; }
+  #side { border-right: 0; border-bottom: 1px solid var(--line); }
+}
+</style>
+</head>
+<body>
+
+<div id="side">
+  <header>
+    <img src="/static/first_chair_logo.png" alt="First Chair"
+         onerror="this.outerHTML='<div class=&quot;fallback&quot;>First Chair</div>'">
+    <p>The optimal ski day.</p>
+  </header>
+
+  <section>
+    <div class="eyebrow">Your day</div>
+
+    <div class="field">
+      <label for="resort">Resort</label>
+      <div class="selwrap"><select id="resort"></select></div>
+      <div class="hint" id="resortHint"></div>
+    </div>
+
+    <div class="field">
+      <label for="start">Starting lift</label>
+      <div class="selwrap"><select id="start">
+        <option value="">Longest lift in the resort</option>
+      </select></div>
+    </div>
+
+    <div class="field">
+      <label for="hours">On the mountain
+        <span class="readout" id="hoursOut">09:00–15:00</span></label>
+      <input type="range" id="hours" min="2" max="8" step="0.5" value="6">
+    </div>
+
+    <div class="field">
+      <label for="lam">Kind of day</label>
+      <input type="range" id="lam" min="0" max="100" value="50">
+      <div class="scale"><span>See everything</span><span>Most vertical</span></div>
+    </div>
+
+    <div class="switchrow">
+      <span>Finish where I started</span>
+      <label class="switch">
+        <input type="checkbox" id="closed" checked
+               aria-label="Finish where I started"><i></i>
+      </label>
+    </div>
+
+    <button id="go">Plan my day</button>
+  </section>
+
+  <div id="results">
+    <div id="stats"></div>
+    <div id="ticketHead"><b id="ticketTitle"></b><span id="ticketMeta"></span></div>
+    <ul id="legs"></ul>
+  </div>
+</div>
+
+<div id="map">
+  <div id="mapgl"></div>
+  <div id="legend" class="floating">
+    <div><b style="background:#1f6fd6"></b> Blue run</div>
+    <div><b style="background:#e03131"></b> Red run</div>
+    <div><b style="background:#0a0e14"></b> Black run</div>
+    <div><b class="dash"></b> Lift</div>
+    <div><b style="background:#767f8d"></b> Walk / traverse</div>
+  </div>
+  <div id="playbar" class="floating">
+    <button id="play" aria-label="Play the day">&#9654;</button>
+    <input type="range" id="scrub" min="0" max="1000" value="0"
+           aria-label="Scrub through the day">
+    <div id="readouts">
+      <b id="clockchip">09:00</b><em>·</em>
+      <b id="elechip">&mdash;</b><em>·</em>
+      <b id="speedchip">&mdash;</b>
+    </div>
+    <div id="speeds" role="group" aria-label="Playback speed"></div>
+  </div>
+  <div id="loading">
+    <div class="box">
+      <div id="bar"><i></i></div>
+      <div id="loadmsg">Testing thousands of possible days…</div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const DIFF_HEX = { novice: "#1f8f52", easy: "#1f6fd6", intermediate: "#e03131",
+                   advanced: "#0a0e14", expert: "#0a0e14", freeride: "#0a0e14" };
+const legColor = l => l.type === "run" ? (DIFF_HEX[l.difficulty] || "#e03131")
+  : l.type === "lift" ? "#0a0e14" : "#767f8d";
+const LOAD_MSGS = [
+  "Testing thousands of possible days\u2026",
+  "Weighing lift rides against descents\u2026",
+  "Trying a different order\u2026",
+  "Squeezing in one more run\u2026",
+];
+const BUILD_MSGS = [
+  "Reading the pistes and lifts\u2026",
+  "Joining runs to lift stations\u2026",
+  "Checking what connects to what\u2026",
+  "Almost there - this is saved once it's done\u2026",
+];
+// playback rate, as minutes of the day elapsed per second of real time
+const SPEEDS = [{ label: "1\u00d7", v: 60 }, { label: "4\u00d7", v: 240 },
+                { label: "8\u00d7", v: 480 }, { label: "20\u00d7", v: 1200 }];
+let speed = 240;
+
+const map = new maplibregl.Map({
+  container: "mapgl",
+  style: "https://tiles.openfreemap.org/styles/positron",
+  center: [11.03, 46.87], zoom: 11, pitch: 56, bearing: -18,
+});
+map.addControl(new maplibregl.NavigationControl({ showCompass: true }),
+               "bottom-right");
+let styleReady = false;
+map.on("load", () => {
+  map.addSource("dem", { type: "raster-dem",
+    tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
+    encoding: "terrarium", tileSize: 256, maxzoom: 13 });
+  map.setTerrain({ source: "dem", exaggeration: 1.3 });
+  map.addLayer({ id: "hills", type: "hillshade", source: "dem",
+                 paint: { "hillshade-exaggeration": 0.32 } });
+  styleReady = true;
+  if (pendingRoute) drawRoute(pendingRoute);
+});
+
+// ---------------- controls ----------------
+const hoursLabel = () => {
+  const end = 9 + +$("hours").value;
+  return `09:00\u2013${String(Math.floor(end)).padStart(2, "0")}:` +
+         `${end % 1 ? "30" : "00"}`;
+};
+$("hours").addEventListener("input",
+  () => $("hoursOut").textContent = hoursLabel());
+$("hoursOut").textContent = hoursLabel();
+
+$("speeds").innerHTML = SPEEDS.map(s =>
+  `<button data-v="${s.v}" class="${s.v === speed ? "on" : ""}" ` +
+  `title="${s.v / 60} minute${s.v === 60 ? "" : "s"} of the day per second">` +
+  `${s.label}</button>`).join("");
+$("speeds").addEventListener("click", ev => {
+  const b = ev.target.closest("button");
+  if (!b) return;
+  speed = +b.dataset.v;
+  [...$("speeds").children].forEach(c => c.classList.toggle("on", c === b));
+});
+
+// A resort is either already built (instant) or has to be built from the
+// source data first, which takes a minute or two and is then cached for good.
+let unbuilt = {};      // slug -> ski area id
+
+const esc = s => String(s).replace(/[&<>"]/g,
+  c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+let catalogTimer = null;
+
+async function loadResorts(select) {
+  const d = await (await fetch("/api/resorts")).json();
+  unbuilt = {};
+
+  let html = "";
+  if (d.ready.length) {
+    html += `<optgroup label="Ready to plan">` + d.ready.map(r =>
+      `<option value="${r.slug}">${esc(r.name)} \u00b7 ` +
+      `${r.stats.piste_km} km \u00b7 ${r.stats.lifts} lifts</option>`
+    ).join("") + `</optgroup>`;
+  }
+  if (d.available.length) {
+    html += `<optgroup label="Build on demand">` + d.available.map(a => {
+      unbuilt[a.slug] = a.id;
+      return `<option value="${a.slug}">${esc(a.name)} \u00b7 ` +
+             `${a.piste_km} km \u00b7 ${a.lifts} lifts</option>`;
+    }).join("") + `</optgroup>`;
+  }
+  $("resort").innerHTML = html ||
+    `<option value="">No resorts found - add a graph to graphs/</option>`;
+
+  if (select) $("resort").value = select;
+  onResortChange();
+
+  // the source scan runs in the background on first boot; poll until it lands
+  clearTimeout(catalogTimer);
+  if (d.catalog === "scanning") {
+    if (!d.available.length && $("resortHint").textContent === "") {
+      $("resortHint").textContent = "Finding more resorts\u2026";
+    }
+    catalogTimer = setTimeout(() => loadResorts($("resort").value), 3000);
+  }
+}
+
+function onResortChange() {
+  const slug = $("resort").value;
+  const needsBuild = slug in unbuilt;
+  $("resortHint").className = needsBuild ? "hint warn" : "hint";
+  $("resortHint").textContent = needsBuild
+    ? "Not mapped yet - planning this one takes a minute or two the first time."
+    : "";
+  $("go").textContent = needsBuild ? "Build and plan my day" : "Plan my day";
+  if (needsBuild) {
+    $("start").innerHTML =
+      `<option value="">Longest lift in the resort</option>`;
+  } else if (slug) {
+    loadStarts(slug);
+  }
+}
+
+async function loadStarts(slug) {
+  const d = await (await fetch(`/api/resorts/${slug}`)).json();
+  $("start").innerHTML = `<option value="">Longest lift in the resort</option>` +
+    d.starts.map(s =>
+      `<option value="${s.node}">${esc(s.name)}</option>`).join("");
+}
+$("resort").addEventListener("change", onResortChange);
+
+// ---------------- solve ----------------
+let msgTimer = null;
+$("go").addEventListener("click", async () => {
+  $("go").disabled = true;
+  $("go").textContent = "Planning\u2026";
+  $("loading").style.display = "grid";
+  let m = 0;
+  const cycle = msgs => {
+    m = 0;
+    $("loadmsg").textContent = msgs[0];
+    clearInterval(msgTimer);
+    msgTimer = setInterval(() => {
+      m = (m + 1) % msgs.length;
+      $("loadmsg").textContent = msgs[m];
+    }, 2600);
+  };
+  try {
+    let slug = $("resort").value;
+    if (slug in unbuilt) {
+      cycle(BUILD_MSGS);
+      const b = await fetch("/api/build", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ area_id: unbuilt[slug] }) });
+      if (!b.ok) throw new Error((await b.json()).detail || b.statusText);
+      slug = (await b.json()).slug;
+      await loadResorts(slug);
+    }
+    cycle(LOAD_MSGS);
+    const res = await fetch("/api/solve", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        resort: slug,
+        hours: +$("hours").value,
+        lam: +$("lam").value / 100,
+        start_node: $("start").value === "" ? null : +$("start").value,
+        return_to_start: $("closed").checked,
+      }) });
+    if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+    showResult(await res.json());
+  } catch (err) {
+    $("loadmsg").textContent = `Couldn't plan that day. ${err.message}`;
+    setTimeout(() => $("loading").style.display = "none", 3000);
+  } finally {
+    clearInterval(msgTimer);
+    $("go").disabled = false;
+    onResortChange();
+  }
+});
+
+// ---------------- results ----------------
+let timeline = [], legTimes = [], marker = null, pendingRoute = null;
+
+function showResult(r) {
+  $("loading").style.display = "none";
+  const t = r.totals;
+  $("stats").innerHTML = `
+    <div class="stat"><b>${t.vertical_m.toLocaleString()}<em>m</em></b>
+      <span>Vertical</span></div>
+    <div class="stat"><b>${t.distance_km}<em>km</em></b><span>Distance</span></div>
+    <div class="stat"><b>${t.lift_rides}</b><span>Lift rides</span></div>
+    <div class="stat"><b>${t.coverage_pct}<em>%</em></b>
+      <span>Of the mountain</span></div>`;
+
+  $("ticketTitle").textContent =
+    ($("resort").selectedOptions[0] || {}).text?.split(" \u00b7 ")[0] || "";
+  $("ticketMeta").textContent = `09:00 \u2013 ${t.home}`;
+
+  legTimes = r.legs.map(l => l.t0);
+  $("legs").innerHTML = r.legs.map((l, i) => {
+    const detail = l.type === "run" && l.vert ? `\u2212${l.vert} m`
+      : `${l.mins < 1 ? "<1" : Math.round(l.mins)} min`;
+    return `<li data-kind="${l.type}" data-i="${i}">
+      <i style="background:${legColor(l)}"></i>
+      <span class="t">${l.time}</span>
+      <span class="n">${l.label}</span>
+      <span class="v">${detail}</span></li>`;
+  }).join("");
+  $("results").style.display = "block";
+  activeLeg = -1;
+
+  let tt = 0;
+  timeline = r.edges.map(e => {
+    const seg = { t0: tt, t1: tt + e.seconds, coords: e.geometry,
+                  kind: e.type,
+                  kmh: e.seconds > 0 ? e.length_m / e.seconds * 3.6 : 0 };
+    tt = seg.t1; return seg;
+  });
+  clock = 0; playing = false;
+  $("play").innerHTML = "&#9654;";
+  $("playbar").style.display = "flex";
+  $("legend").style.display = "block";
+
+  if (styleReady) drawRoute(r); else pendingRoute = r;
+}
+
+$("legs").addEventListener("click", ev => {
+  const li = ev.target.closest("li");
+  if (!li) return;
+  clock = legTimes[+li.dataset.i];
+  render();
+});
+
+function drawRoute(r) {
+  pendingRoute = null;
+  const fc = { type: "FeatureCollection", features: r.edges.map(e => ({
+    type: "Feature",
+    properties: { kind: e.type, color: legColor(e) },
+    geometry: { type: "LineString",
+                coordinates: e.geometry.map(c => [c[0], c[1]]) } })) };
+
+  if (map.getSource("route")) map.getSource("route").setData(fc);
+  else {
+    map.addSource("route", { type: "geojson", data: fc });
+    map.addLayer({ id: "route-casing", type: "line", source: "route",
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-width": 6.5, "line-color": "#ffffff",
+               "line-opacity": .95 } });
+    map.addLayer({ id: "route", type: "line", source: "route",
+      filter: ["!=", ["get", "kind"], "lift"],
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-width": 3.4, "line-color": ["get", "color"] } });
+    map.addLayer({ id: "route-lifts", type: "line", source: "route",
+      filter: ["==", ["get", "kind"], "lift"],
+      layout: { "line-cap": "butt", "line-join": "round" },
+      paint: { "line-width": 2.2, "line-color": ["get", "color"],
+               "line-dasharray": [2, 1.8] } });
+  }
+
+  const b = new maplibregl.LngLatBounds();
+  fc.features.forEach(f => f.geometry.coordinates.forEach(c => b.extend(c)));
+  map.fitBounds(b, { padding: 80, pitch: 56, duration: 1500 });
+
+  const el = document.createElement("div");
+  el.style.cssText = "width:15px;height:15px;border-radius:50%;" +
+    "background:#1257e0;border:3px solid #fff;" +
+    "box-shadow:0 2px 8px rgba(10,14,20,.45)";
+  if (marker) marker.remove();
+  marker = new maplibregl.Marker({ element: el })
+    .setLngLat(fc.features[0].geometry.coordinates[0]).addTo(map);
+  render();
+}
+
+// ---------------- playback ----------------
+let clock = 0, playing = false, lastFrame = null, activeLeg = -1;
+const totalTime = () => timeline.length ? timeline[timeline.length - 1].t1 : 0;
+
+function stateAt(t) {
+  const seg = timeline.find(s => t <= s.t1) || timeline[timeline.length - 1];
+  const f = Math.min(1, Math.max(0, (t - seg.t0) / (seg.t1 - seg.t0 || 1)));
+  const pts = seg.coords, idx = f * (pts.length - 1);
+  const i = Math.min(pts.length - 2, Math.floor(idx)), u = idx - i;
+  const mix = (a, b) => a + u * (b - a);
+  return {
+    lnglat: [mix(pts[i][0], pts[i + 1][0]), mix(pts[i][1], pts[i + 1][1])],
+    // OpenSkiMap geometry carries elevation as the third ordinate
+    ele: pts[i].length > 2 && pts[i + 1].length > 2
+      ? mix(pts[i][2], pts[i + 1][2]) : null,
+    seg,
+  };
+}
+const clockStr = t => {
+  const s = 9 * 3600 + t;
+  return `${String(Math.floor(s / 3600)).padStart(2, "0")}:` +
+         `${String(Math.floor(s % 3600 / 60)).padStart(2, "0")}`;
+};
+
+function render() {
+  if (!timeline.length) return;
+  const at = stateAt(clock);
+  marker.setLngLat(at.lnglat);
+
+  $("clockchip").textContent = clockStr(clock);
+  $("elechip").textContent = at.ele == null ? "\u2014"
+    : `${Math.round(at.ele).toLocaleString()} m`;
+  $("speedchip").textContent = at.seg.kind === "walk" ? "on foot"
+    : `${Math.round(at.seg.kmh)} km/h`;
+  $("scrub").value = Math.round(1000 * clock / (totalTime() || 1));
+
+  let i = legTimes.length - 1;
+  while (i > 0 && legTimes[i] > clock) i--;
+  if (i !== activeLeg) {
+    const rows = $("legs").children;
+    if (rows[activeLeg]) rows[activeLeg].classList.remove("on");
+    if (rows[i]) {
+      rows[i].classList.add("on");
+      if (playing) rows[i].scrollIntoView({ block: "nearest" });
+    }
+    activeLeg = i;
+  }
+}
+function frame(ts) {
+  if (!playing) return;
+  if (lastFrame != null) {
+    clock = Math.min(totalTime(), clock + (ts - lastFrame) / 1000 * speed);
+    if (clock >= totalTime()) playing = false;
+  }
+  lastFrame = ts; render();
+  if (playing) requestAnimationFrame(frame);
+  else $("play").innerHTML = "&#9654;";
+}
+$("play").addEventListener("click", () => {
+  if (clock >= totalTime()) clock = 0;
+  playing = !playing; lastFrame = null;
+  $("play").innerHTML = playing ? "&#10074;&#10074;" : "&#9654;";
+  if (playing) requestAnimationFrame(frame);
+});
+$("scrub").addEventListener("input", ev => {
+  clock = ev.target.value / 1000 * totalTime(); render();
+});
+
+loadResorts();
+</script>
+</body>
+</html>
