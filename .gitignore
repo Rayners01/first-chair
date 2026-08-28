@@ -8,8 +8,10 @@ ski_areas.geojson
 # !tests/fixtures/*.geojson
 
 # --- generated ---
-cache/            # solved days + the ski area catalog
-graphs/           # built resort graphs
+# solved days and the ski area catalog
+cache/
+# built resort graphs
+graphs/
 route.json
 *.lp              # CBC/PuLP working files
 *.mps

@@ -463,7 +463,7 @@ function onResortChange() {
 }
 
 async function loadStarts(slug) {
-  const d = await (await fetch(`/api/resorts/${slug}`)).json();
+  const d = await (await fetch(`/api/resorts/${encodeURIComponent(slug)}`)).json();
   $("start").innerHTML = `<option value="">Longest lift in the resort</option>` +
     d.starts.map(s =>
       `<option value="${s.node}">${esc(s.name)}</option>`).join("");

@@ -13,6 +13,7 @@ flat pieces become skate edges; gentle pieces are walkable in reverse.
 """
 
 import argparse
+import unicodedata
 import json
 import math
 from collections import defaultdict, deque
@@ -185,8 +186,9 @@ def feature_areas(feature):
 
 
 def slugify(text):
-    keep = [c.lower() if c.isalnum() else "-" for c in (text or "area")]
-    slug = "".join(keep)
+    text = unicodedata.normalize("NFKD", text or "area")
+    text = "".join(c for c in text if not unicodedata.combining(c))
+    slug = "".join(c.lower() if c.isascii() and c.isalnum() else "-" for c in text)
     while "--" in slug:
         slug = slug.replace("--", "-")
     return slug.strip("-") or "area"
