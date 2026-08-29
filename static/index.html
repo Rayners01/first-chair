@@ -47,7 +47,7 @@ h1, p, ul { margin: 0; }
 header { padding: 20px 20px 20px; border-bottom: 1px solid var(--line); }
 header img { width: 100%; height: auto; display: block; }
 header .fallback { font-weight: 700; font-size: 25px; letter-spacing: -.035em; }
-header p { margin-top: 10px; font-size: 13px; color: var(--ink-45); }
+header p { margin-top: 5px; font-size: 13px; color: var(--ink-45); }
 
 section { padding: 22px 26px; border-bottom: 1px solid var(--line); }
 .eyebrow { font-size: 10.5px; font-weight: 600; letter-spacing: .14em;
@@ -305,7 +305,7 @@ footer a:hover { color: var(--blue); }
   </div>
 
   <footer>
-    © Alfie Rayner, 2026 · Map data ©
+    © <a href="https://alfierayner.com">Alfie Rayner</a>, 2026 · Map data ©
     <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>
     contributors via <a href="https://openskimap.org">OpenSkiMap</a>
   </footer>
@@ -347,15 +347,17 @@ const DIFF_HEX = { novice: "#1f8f52", easy: "#1f6fd6", intermediate: "#e03131",
 const legColor = l => l.type === "run" ? (DIFF_HEX[l.difficulty] || "#e03131")
   : l.type === "lift" ? "#0a0e14" : "#767f8d";
 const LOAD_MSGS = [
-  "Testing thousands of possible days\u2026",
-  "Weighing lift rides against descents\u2026",
+  "Testing thousands of possible routes\u2026",
   "Trying a different order\u2026",
+  "Deciding whether to cross the valley\u2026",
+  "Swapping a run out, trying another\u2026",
   "Squeezing in one more run\u2026",
 ];
 const BUILD_MSGS = [
   "Reading the pistes and lifts\u2026",
-  "Joining runs to lift stations\u2026",
-  "Checking what connects to what\u2026",
+  "Connecting up the piste map\u2026",
+  "Working out which runs meet where\u2026",
+  "Timing the lifts\u2026",
   "Almost there - this is saved once it's done\u2026",
 ];
 // playback rate, as minutes of the day elapsed per second of real time
