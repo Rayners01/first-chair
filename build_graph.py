@@ -13,7 +13,6 @@ flat pieces become skate edges; gentle pieces are walkable in reverse.
 """
 
 import argparse
-import unicodedata
 import json
 import math
 from collections import defaultdict, deque
@@ -186,9 +185,8 @@ def feature_areas(feature):
 
 
 def slugify(text):
-    text = unicodedata.normalize("NFKD", text or "area")
-    text = "".join(c for c in text if not unicodedata.combining(c))
-    slug = "".join(c.lower() if c.isascii() and c.isalnum() else "-" for c in text)
+    keep = [c.lower() if c.isalnum() else "-" for c in (text or "area")]
+    slug = "".join(keep)
     while "--" in slug:
         slug = slug.replace("--", "-")
     return slug.strip("-") or "area"
@@ -197,6 +195,23 @@ def slugify(text):
 def is_skiable_run(props):
     uses = props.get("uses")
     return not uses or bool(set(uses) & RUN_USES)
+
+
+def stream_features(path):
+    """
+    Yield features one at a time. Uses ijson when available so a large source
+    file never has to sit in memory as parsed Python objects; falls back to
+    json.load otherwise (fine for small extracts, fatal for a planet file).
+    """
+    try:
+        import ijson
+    except ImportError:
+        with open(path) as fh:
+            yield from json.load(fh).get("features", [])
+        return
+    with open(path, "rb") as fh:
+        # use_float avoids Decimal objects, which are slow and break arithmetic
+        yield from ijson.items(fh, "features.item", use_float=True)
 
 
 def load(path, bbox=None, area=None, area_ids=None, run_filter=False):
@@ -218,10 +233,8 @@ def load(path, bbox=None, area=None, area_ids=None, run_filter=False):
         x0, y0, x1, y1 = bbox
         return any(x0 <= c[0] <= x1 and y0 <= c[1] <= y1 for c in coords)
 
-    with open(path) as fh:
-        data = json.load(fh)
     out = []
-    for feat in data.get("features", []):
+    for feat in stream_features(path):
         props = feat.setdefault("properties", {})
         if run_filter and not is_skiable_run(props):
             continue
@@ -230,23 +243,6 @@ def load(path, bbox=None, area=None, area_ids=None, run_filter=False):
         out += [(props, c) for c in linestrings(feat)
                 if len(c) >= 2 and inside(c)]
     return out
-
-
-def stream_features(path):
-    """
-    Yield features one at a time. Uses ijson when available so a multi-hundred-MB
-    source file never has to sit in memory as parsed Python objects; falls back
-    to json.load otherwise (fine for regional extracts, not for the planet).
-    """
-    try:
-        import ijson
-    except ImportError:
-        with open(path) as fh:
-            yield from json.load(fh).get("features", [])
-        return
-    with open(path, "rb") as fh:
-        # use_float avoids Decimal objects, which are slow and break arithmetic
-        yield from ijson.items(fh, "features.item", use_float=True)
 
 
 def flat_length(coords):
